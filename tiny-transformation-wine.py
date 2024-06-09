@@ -18,9 +18,23 @@ for kind in kinds:
         reader = csv.reader(csvfile, delimiter=',')
         header = next(reader)
         Row = namedtuple('Row', header)
-        con.execute("CREATE TABLE IF NOT EXISTS wine(%s, %s, %s, %s, %s, %s, %s, %s, %s)" % (*header, "Kind"))
+        con.execute("CREATE TABLE IF NOT EXISTS Wine(%s, %s, %s, %s, %s, %s, %s, %s, %s)" % (*header, "Kind"))
         for row in map(convert, map(Row._make, reader)):
-            con.execute("INSERT INTO wine VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", (*row, kind))
-        cur = con.execute("SELECT * FROM wine")
+            con.execute("INSERT INTO Wine VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", (*row, kind))
+        cur = con.execute("SELECT * FROM Wine")
         for row in cur:
             print(*row)
+
+with open('Varieties.csv', newline='') as csvfile:
+    reader = csv.reader(csvfile, delimiter=',')
+    header = next(reader)
+    Row = namedtuple('Row', header)
+    con.execute("CREATE TABLE IF NOT EXISTS Varieties(%s, %s)" % (*header, "Id"))
+    row_id = 1
+    for row in map(Row._make, reader):
+        con.execute("INSERT INTO Varieties VALUES(?, ?)", (*row, row_id))
+        row_id += 1
+    cur = con.execute("SELECT * FROM Varieties")
+    for row in cur:
+        print(*row)
+ 
