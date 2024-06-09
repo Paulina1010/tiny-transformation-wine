@@ -1,5 +1,8 @@
 from collections import namedtuple
 import csv
+import sqlite3
+
+con = sqlite3.connect(":memory:") 
 
 def convert(row):
     return row._replace(
@@ -7,14 +10,17 @@ def convert(row):
         NumberOfRatings=int(row.NumberOfRatings),
         Price=float(row.Price),
     )
+    
 
 with open('white.csv', newline='') as csvfile:
     spamreader = csv.reader(csvfile, delimiter=',')
-    Row = namedtuple('Row', next(spamreader))
-    print(Row)
-
+    header = next(spamreader)
+    Row = namedtuple('Row', header)
+    con.execute("CREATE TABLE IF NOT EXISTS wine(%s, %s, %s, %s, %s, %s, %s, %s, %s)" % (*header, "kind"))
     for row in map(convert, map(Row._make, spamreader)):
-        for x, colname in zip(row, Row._fields):
-            print(colname, x, type(x).__name__, end=' | ')
-        print()
-        print()
+        con.execute("INSERT INTO wine VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)", (*row, "white"))
+    cur = con.execute("SELECT * FROM wine")
+    for row in cur:
+        print(*row)
+
+        
