@@ -30,10 +30,8 @@ with open('Varieties.csv', newline='') as csvfile:
     header = next(reader)
     Row = namedtuple('Row', header)
     con.execute("CREATE TABLE IF NOT EXISTS Varieties(%s, %s)" % (*header, "Id"))
-    row_id = 1
-    for row in map(Row._make, reader):
-        con.execute("INSERT INTO Varieties VALUES(?, ?)", (*row, row_id))
-        row_id += 1
+    for idx, row in enumerate(map(Row._make, reader)):
+        con.execute("INSERT INTO Varieties VALUES(?, ?)", (*row, idx+1))
     cur = con.execute("SELECT * FROM Varieties")
     for row in cur:
         print(*row)
