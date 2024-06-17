@@ -10,6 +10,7 @@ def convert(row):
         NumberOfRatings=int(row.NumberOfRatings),
         Price=float(row.Price),
     )
+con.execute("DROP TABLE Wine")
 
 kinds = ('White', 'Red', 'Rose', 'Sparkling')
     
@@ -43,20 +44,14 @@ cur = con.execute("SELECT rowid, Name FROM Wine")
 con.execute("ALTER TABLE Wine ADD COLUMN Variety_ID DEFAULT NULL")
 
 for rowid, name in cur:
-    assert name is not None
-    #print(name)
     cur2 = con.execute("SELECT * FROM Varieties")
     for variety, variety_id in cur2:
         if variety in name:
-            con.execute("INSERT INTO Wine(Variety_ID) VALUES(?)", (variety_id,)) 
-            # tu jest b³¹d, bo nie chodzi o to, ¿eby dodaæ kolejny rekord
-            # tylko dodaæ wartoœæ do aktualnego rekordu
+            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name=?", (variety,name))
             
 cur = con.execute("SELECT * FROM Wine")
 for row in cur:
     print(row)
-
-
 
 '''
  def vlookup(basic_table, search_table):
@@ -66,7 +61,3 @@ for row in cur:
                 return_value = con.execute("SELECT Id FROM Varieties")
                 con.execute("INSERT INTO Wine (Variety_ID) VALUES(?)", (return_value))
 '''
-
-    
- 
-#con.execute("ALTER TABLE Wine ADD COLUMN Variety_ID DEFAULT NULL")
