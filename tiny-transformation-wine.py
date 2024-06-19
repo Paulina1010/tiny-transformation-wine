@@ -12,6 +12,7 @@ def convert(row):
     )
 con.execute("DROP TABLE Wine")
 
+#Add all wines to the Wine table into database
 kinds = ('White', 'Red', 'Rose', 'Sparkling')
     
 for kind in kinds:
@@ -27,6 +28,7 @@ for kind in kinds:
             pass
             #print(*row)
 
+#Add Varieties to the database with ID
 with open('Varieties.csv', newline='') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
     header = next(reader)
@@ -39,7 +41,7 @@ with open('Varieties.csv', newline='') as csvfile:
         pass
         #print(*row)
  
-con.commit()
+#Assign the kind of wine to the wines
 cur = con.execute("SELECT rowid, Name FROM Wine")
 con.execute("ALTER TABLE Wine ADD COLUMN Variety_ID DEFAULT NULL")
 
@@ -47,17 +49,20 @@ for rowid, name in cur:
     cur2 = con.execute("SELECT * FROM Varieties")
     for variety, variety_id in cur2:
         if variety in name:
-            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name=?", (variety,name))
-            
+            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name = ?", (variety,name)) 
+
+#Remove white spaces
+cur = con.execute("SELECT rowid, Name FROM Wine")
+
+for rowid, name in cur:
+    new_name = name.strip()
+    con.execute("UPDATE Wine SET Name = ? WHERE rowid = ?", (new_name, rowid))
+    
+con.commit()
+
 cur = con.execute("SELECT * FROM Wine")
 for row in cur:
     print(row)
 
-'''
- def vlookup(basic_table, search_table):
-    for value in basic_table[0]:
-      for search_value in search_table[0]:
-            if(value==search_value):
-                return_value = con.execute("SELECT Id FROM Varieties")
-                con.execute("INSERT INTO Wine (Variety_ID) VALUES(?)", (return_value))
-'''
+
+
