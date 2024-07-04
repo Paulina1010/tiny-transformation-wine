@@ -52,11 +52,12 @@ for rowid, name in cur:
             con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name = ?", (variety,name)) 
 
 #Remove white spaces
-cur = con.execute("SELECT rowid, Name FROM Wine")
-
-for rowid, name in cur:
-    new_name = name.strip()
-    con.execute("UPDATE Wine SET Name = ? WHERE rowid = ?", (new_name, rowid))
+list_of_columns = ('Name', 'Country', 'Region', 'Winery', 'Year')
+for col in list_of_columns:
+    cur = con.execute("SELECT rowid, %s FROM Wine" % col)
+    for rowid, name in cur:
+        new_name = name.strip()
+        con.execute("UPDATE Wine SET %s = ? WHERE rowid = ?" % col, (new_name, rowid))
     
 con.commit()
 
