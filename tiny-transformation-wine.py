@@ -2,6 +2,7 @@ from collections import namedtuple
 import csv
 import sqlite3
 import hashlib
+import os
 
 con = sqlite3.connect("database") 
 
@@ -74,14 +75,26 @@ for row in cur:
 con.execute("CREATE TABLE IF NOT EXISTS Country(Country, CountryCode)")
 list_of_countries = [("Italy", "IT"), ("Austria", "AT"), ("Germany", "DE"), ("France", "FR"), ("New Zealand", "NZ"), ("Chile", "CL"), ("Portugal", "PT"), ("Israel", "IL"), ("South Africa", "ZA"), ("Spain", "ES"), ("Luxembourg", "LU")]
 for country, countrycode in list_of_countries:
-    print(country, countrycode)
     con.execute("INSERT INTO Country VALUES(?, ?)", (country, countrycode))
 
+#Save data to csv grouping by country
+cur = con.execute("SELECT CountryCode FROM Country")
+os.makedirs("Wines", exist_ok=True)
+
+for countrycode in cur:
+    cur2 = con.execute("SELECT CountryCode, WINE_HSK, Name, Wine.Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind FROM Wine LEFT JOIN Country ON Wine.Country = Country.Country WHERE CountryCode = ?", countrycode)
+    with open('Wines/%s.csv' % countrycode, newline='', mode='w') as csvfile:
+        fieldnames = ['CountryCode', 'WINE_HSK', 'Name', 'Country', 'Region', 'Winery', 'Rating', 'NumberOfRatings', 'Price', 'Year', 'Kind']
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(fieldnames)
+        for element in cur2:
+            writer.writerow(element)
+    
 con.commit()
 
-cur = con.execute("SELECT * FROM Country")
-for row in cur:
-    print(row)
+#cur = con.execute("SELECT * FROM Country")
+#for row in cur:
+    #print(row)
 
 
 
