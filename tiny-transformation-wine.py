@@ -1,6 +1,7 @@
 from collections import namedtuple
 import csv
 import sqlite3
+import hashlib
 
 con = sqlite3.connect("database") 
 
@@ -49,7 +50,7 @@ for rowid, name in cur:
     cur2 = con.execute("SELECT * FROM Varieties")
     for variety, variety_id in cur2:
         if variety in name:
-            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name = ?", (variety,name)) 
+            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name = ?", (variety_id,name)) 
 
 #Remove white spaces
 list_of_columns = ('Name', 'Country', 'Region', 'Winery', 'Year')
@@ -58,7 +59,17 @@ for col in list_of_columns:
     for rowid, name in cur:
         new_name = name.strip()
         con.execute("UPDATE Wine SET %s = ? WHERE rowid = ?" % col, (new_name, rowid))
-    
+        
+#Add column WINE_HSK(dla Name, country, region, year, kind).
+cur = con.execute("SELECT rowid, Name, Country, Region, Year, Kind FROM Wine")
+con.execute("ALTER TABLE Wine ADD COLUMN WINE_HSK DEFAULT NULL")
+
+for row in cur:
+    rowid, *to_hash = row #pierwszy i pozostałe (*) - tuple unpacking
+    row_new = "|".join(to_hash)
+    hash_key = hashlib.md5(row_new.encode()).hexdigest()
+    con.execute("UPDATE Wine SET WINE_HSK = ? WHERE rowid = ?", (hash_key, rowid))
+
 con.commit()
 
 cur = con.execute("SELECT * FROM Wine")
