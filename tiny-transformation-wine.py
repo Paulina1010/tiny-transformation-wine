@@ -65,14 +65,21 @@ cur = con.execute("SELECT rowid, Name, Country, Region, Year, Kind FROM Wine")
 con.execute("ALTER TABLE Wine ADD COLUMN WINE_HSK DEFAULT NULL")
 
 for row in cur:
-    rowid, *to_hash = row #pierwszy i pozostałe (*) - tuple unpacking
+    rowid, *to_hash = row
     row_new = "|".join(to_hash)
     hash_key = hashlib.md5(row_new.encode()).hexdigest()
     con.execute("UPDATE Wine SET WINE_HSK = ? WHERE rowid = ?", (hash_key, rowid))
 
+#Add Country table
+con.execute("CREATE TABLE IF NOT EXISTS Country(Country, CountryCode)")
+list_of_countries = [("Italy", "IT"), ("Austria", "AT"), ("Germany", "DE"), ("France", "FR"), ("New Zealand", "NZ"), ("Chile", "CL"), ("Portugal", "PT"), ("Israel", "IL"), ("South Africa", "ZA"), ("Spain", "ES"), ("Luxembourg", "LU")]
+for country, countrycode in list_of_countries:
+    print(country, countrycode)
+    con.execute("INSERT INTO Country VALUES(?, ?)", (country, countrycode))
+
 con.commit()
 
-cur = con.execute("SELECT * FROM Wine")
+cur = con.execute("SELECT * FROM Country")
 for row in cur:
     print(row)
 
