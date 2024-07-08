@@ -92,9 +92,7 @@ for countrycode in cur:
     
 con.commit()
 
-#cur = con.execute("SELECT * FROM Country")
-#for row in cur:
-    #print(row)
+
 
 
 
