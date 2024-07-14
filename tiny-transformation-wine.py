@@ -12,77 +12,73 @@ from functools import partial
 COUNTRIES = [("Italy", "IT"), ("Austria", "AT"), ("Germany", "DE"), ("France", "FR"), ("New Zealand", "NZ"), ("Chile", "CL"), ("Portugal", "PT"), ("Israel", "IL"), ("South Africa", "ZA"), ("Spain", "ES"), ("Luxembourg", "LU")]
 
 KINDS = ("White", "Red", "Rose", "Sparkling") 
- 
+
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS Wine("WINE_HSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind")
+CREATE TABLE IF NOT EXISTS Wine("VarietyId", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind");
+CREATE TABLE IF NOT EXISTS Varieties("Variety", "VarietyId");
+CREATE TABLE IF NOT EXISTS Country("Country", "CountryCode")
 """
 
 con = sqlite3.connect("database.sqlite") 
 
 def parse_numbers(row):
-    return row._replace(
-        Rating=float(row.Rating),
-        NumberOfRatings=int(row.NumberOfRatings),
-        Price=float(row.Price),
-    )
+    row = row.copy() #tworze kopie słownika, zeby nie dzialac na oryginalnych danych. Dzialanie na oryginalnych danych powoduje bugi; mozna tez zapisac row = dict(row) 
+    row["Rating"] = float(row["Rating"])
+    row["NumberOfRatings"] = int(row["NumberOfRatings"])
+    row["Price"] = float(row["Price"])
+    return row
 
 #Remove whitespaces
 def strip(row):
-    return tuple(x.strip() for x in row)
+    row = row.copy()
+    return {k: v.strip() for k, v in row.items()}
 
 #Add hashkey to Wine table
 def hash_(kind, row):
-    #Mam namedtuple
-    row_dict = row._asdict()
-    #Mam dict
+    row = row.copy()
     to_hash = ("Name", "Country", "Region", "Year")
-    row_new = "|".join(row_dict[x] for x in to_hash) + "|" + kind
-    hash_key = hashlib.md5(row_new.encode()).hexdigest()
-    return hash_key, *row
+    row_new = "|".join(row[x] for x in to_hash) + "|" + kind
+    row["WineHSK"] = hashlib.md5(row_new.encode()).hexdigest()
+    return row
 
+def variety(row):
+    row = row.copy()
+    varieties = list(con.execute("SELECT Variety, VarietyId FROM Varieties"))
+    for variety, VarietyId in varieties:
+        if variety in row["Name"]:
+            row["VarietyId"] = VarietyId
+            break
+    else:
+        row["VarietyId"] = None
+    return row
+ 
 con.execute("DROP TABLE Wine")
+con.execute("DROP TABLE Varieties")
 
+#CREATE
+con.executescript(SCHEMA)
+ 
+#Add Varieties to the database with ID
+with open("Varieties.csv", newline="") as f:
+    reader = csv.DictReader(f, delimiter=",")
+    #con.execute(VARIETY)
+    for idx, row in enumerate(reader):
+        con.execute("INSERT INTO Varieties (Variety, VarietyId) VALUES(?, ?)", (row["Variety"], idx+1))
+        
 #Add all wines to the Wine table into database
 for kind in KINDS:
     with open("%s.csv" % kind, newline="") as f:
-        reader = csv.reader(f, delimiter=",")
-        header = next(reader)
-        Row = namedtuple('Row', header)
-        con.execute(SCHEMA)
+        reader = csv.DictReader(f, delimiter=",")
         it = reader
-        it = map(strip, it) #Remove whitespaces
-        it = map(Row._make, it)
+        it = map(strip, it)
         it = map(parse_numbers, it)
         it = map(partial(hash_, kind), it)
+        it = map(variety, it)
         for row in it:
-            con.execute("INSERT INTO Wine VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (*row, kind))
-
-#Add Varieties to the database with ID
-with open("Varieties.csv", newline="") as f:
-    reader = csv.reader(f, delimiter=",")
-    header = next(reader)
-    Row = namedtuple("Row", header)
-    con.execute("CREATE TABLE IF NOT EXISTS Varieties(%s, %s)" % (*header, "Id"))
-    for idx, row in enumerate(map(Row._make, reader)):
-        con.execute("INSERT INTO Varieties VALUES(?, ?)", (*row, idx+1))
-    cur = con.execute("SELECT * FROM Varieties")
-    for row in cur:
-        pass
-        #print(*row)
- 
-#Assign the kind of wine to the wines
-cur = con.execute("SELECT rowid, Name FROM Wine")
-con.execute("ALTER TABLE Wine ADD COLUMN Variety_ID DEFAULT NULL")
-
-for rowid, name in cur:
-    cur2 = con.execute("SELECT * FROM Varieties")
-    for variety, variety_id in cur2:
-        if variety in name:
-            con.execute("UPDATE Wine SET Variety_ID = ? WHERE Name = ?", (variety_id,name)) 
-
+            row["Kind"] = kind
+            con.execute("INSERT INTO Wine (WineHSK, Name, Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyId) VALUES(:WineHSK, :Name, :Country, :Region, :Winery, :Rating, :NumberOfRatings, :Price, :Year, :Kind, :VarietyId)", row)
 
 #Add Country table
-con.execute("CREATE TABLE IF NOT EXISTS Country(Country, CountryCode)")
 for country, countrycode in COUNTRIES:
     con.execute("INSERT INTO Country VALUES(?, ?)", (country, countrycode))
 
@@ -91,14 +87,13 @@ cur = con.execute("SELECT CountryCode FROM Country")
 os.makedirs("Wines", exist_ok=True)
 
 for countrycode in cur:
-    cur2 = con.execute("SELECT CountryCode, WINE_HSK, Name, Wine.Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind FROM Wine LEFT JOIN Country ON Wine.Country = Country.Country WHERE CountryCode = ?", countrycode)
+    cur2 = con.execute("SELECT CountryCode, WineHSK, Name, Wine.Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, Variety FROM Wine LEFT JOIN Country ON Wine.Country = Country.Country LEFT JOIN Varieties ON Varieties.VarietyId = Wine.VarietyId WHERE CountryCode = ?", countrycode)
     with open("Wines/%s.csv" % countrycode, newline="", mode="w") as f:
-        fieldnames = ["CountryCode", "WINE_HSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind"]
+        fieldnames = ["CountryCode", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind", "Variety"]
         writer = csv.writer(f, delimiter=",")
         writer.writerow(fieldnames)
         for element in cur2:
             writer.writerow(element)
-    
 con.commit()
 
 
