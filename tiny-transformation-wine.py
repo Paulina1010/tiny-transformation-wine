@@ -1,5 +1,5 @@
 """
-This script loads Wine data, transform them and load data to database.
+This script loads Wine data, transform them and load data to the database.
 """
 
 import csv
@@ -14,48 +14,61 @@ COUNTRIES = [("Italy", "IT"), ("Austria", "AT"), ("Germany", "DE"), ("France", "
 KINDS = ("White", "Red", "Rose", "Sparkling") 
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS Wine("VarietyId", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind");
-CREATE TABLE IF NOT EXISTS Varieties("Variety", "VarietyId");
-CREATE TABLE IF NOT EXISTS Country("Country", "CountryCode")
+CREATE TABLE Wine("VarietyId", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind");
+CREATE TABLE Varieties("Variety", "VarietyId");
+CREATE TABLE Country("Country", "CountryCode")
 """
 
 con = sqlite3.connect("database.sqlite") 
+
 
 def parse_numbers(row):
     row = row.copy() #tworze kopie słownika, zeby nie dzialac na oryginalnych danych. Dzialanie na oryginalnych danych powoduje bugi; mozna tez zapisac row = dict(row) 
     row["Rating"] = float(row["Rating"])
     row["NumberOfRatings"] = int(row["NumberOfRatings"])
     row["Price"] = float(row["Price"])
+    
     return row
+
 
 #Remove whitespaces
 def strip(row):
-    row = row.copy()
-    return {k: v.strip() for k, v in row.items()}
+    return {k: v.strip() for k, v in row.items()} #nie muszę robić kopii, bo tutaj tworzę nowy słownik
+
 
 #Add hashkey to Wine table
-def hash_(kind, row):
+def add_hash(kind, row):
     row = row.copy()
-    to_hash = ("Name", "Country", "Region", "Year")
-    row_new = "|".join(row[x] for x in to_hash) + "|" + kind
-    row["WineHSK"] = hashlib.md5(row_new.encode()).hexdigest()
+    hash_cols = ("Name", "Country", "Region", "Year")
+    to_hash = "|".join(row[x] for x in hash_cols) + "|" + kind
+    row["WineHSK"] = hashlib.md5(to_hash.encode()).hexdigest()
+    
     return row
 
-def variety(row):
+
+def add_variety(varieties, row):
     row = row.copy()
-    varieties = list(con.execute("SELECT Variety, VarietyId FROM Varieties"))
-    for variety, VarietyId in varieties:
+    for variety, variety_id in varieties:
         if variety in row["Name"]:
-            row["VarietyId"] = VarietyId
+            row["VarietyId"] = variety_id
             break
     else:
         row["VarietyId"] = None
+        
     return row
+    
+def add_kind(row):
+    row = row.copy()
+    row["Kind"] = kind
+
+    return row
+ 
  
 con.execute("DROP TABLE Wine")
 con.execute("DROP TABLE Varieties")
+con.execute("DROP TABLE Country")
 
-#CREATE
+
 con.executescript(SCHEMA)
  
 #Add Varieties to the database with ID
@@ -66,16 +79,17 @@ with open("Varieties.csv", newline="") as f:
         con.execute("INSERT INTO Varieties (Variety, VarietyId) VALUES(?, ?)", (row["Variety"], idx+1))
         
 #Add all wines to the Wine table into database
+varieties = list(con.execute("SELECT Variety, VarietyId FROM Varieties"))
 for kind in KINDS:
     with open("%s.csv" % kind, newline="") as f:
         reader = csv.DictReader(f, delimiter=",")
         it = reader
         it = map(strip, it)
         it = map(parse_numbers, it)
-        it = map(partial(hash_, kind), it)
-        it = map(variety, it)
+        it = map(partial(add_hash, kind), it)
+        it = map(partial(add_variety, varieties), it)
+        it = map(add_kind, it)
         for row in it:
-            row["Kind"] = kind
             con.execute("INSERT INTO Wine (WineHSK, Name, Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyId) VALUES(:WineHSK, :Name, :Country, :Region, :Winery, :Rating, :NumberOfRatings, :Price, :Year, :Kind, :VarietyId)", row)
 
 #Add Country table
