@@ -23,7 +23,7 @@ The program is divided into several commands:
 You need to have python downloaded to run the code.
 
 To run the program, download this program and data from [kagle.com][1], put them in the same folder and run the script as presented below.
-[1]: https://www.kaggle.com/datasets/budnyak/wine-rating-and-price
+
 ```sh
 # create tables
 python3 tiny-transformation-wine.py create
@@ -55,3 +55,5 @@ Report bugs on the [issue tracker](https://github.com/Paulina1010/programy-pytho
 
 ## License
 MIT, see [LICENSE](LICENSE)
+
+[1]: https://www.kaggle.com/datasets/budnyak/wine-rating-and-price
