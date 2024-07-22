@@ -12,14 +12,32 @@ from functools import partial
 
 con = sqlite3.connect("database.sqlite") 
 
-COUNTRIES = [("Italy", "IT"), ("Austria", "AT"), ("Germany", "DE"), ("France", "FR"), ("New Zealand", "NZ"), ("Chile", "CL"), ("Portugal", "PT"), ("Israel", "IL"), ("South Africa", "ZA"), ("Spain", "ES"), ("Luxembourg", "LU")]
+COUNTRIES = [("IT", "Italy"), ("AT", "Austria"), ("DE", "Germany"), ("FR", "France"), ("NZ", "New Zealand"), ("CL", "Chile"), ("PT", "Portugal"), ("IL", "Israel"), ("ZA", "South Africa"), ("ES", "Spain"), ("LU", "Luxembourg")]
 
 KINDS = ("White", "Red", "Rose", "Sparkling") 
 
 SCHEMA = """
-CREATE TABLE Wine("VarietyId", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind");
-CREATE TABLE Variety("VarietyId", "VarietyName");
-CREATE TABLE Country("Country", "CountryCode")
+CREATE TABLE Wine(
+      VarietyId INTEGER
+    , WineHSK VARCHAR(32)
+    , Name VARCHAR(255)
+    , CountryName VARCHAR(20)
+    , Region VARCHAR(50)
+    , Winery VARCHAR(50)
+    , Rating REAL
+    , NumberOfRatings INTEGER
+    , Price REAL
+    , Year VARCHAR(4)
+    , Kind VARCHAR(20)
+);
+CREATE TABLE Variety(
+      VarietyId INTEGER
+    , VarietyName VARCHAR(50)
+);
+CREATE TABLE Country(
+      CountryCode VARCHAR(2)
+    , CountryName VARCHAR(20)
+)
 """
 
 def parse_numbers(row):
@@ -85,8 +103,8 @@ elif sys.argv[1] == "load":
             
     #Add Country table
     n_cou = 0
-    for country, countrycode in COUNTRIES:
-        con.execute("INSERT INTO Country VALUES(?, ?)", (country, countrycode))
+    for country_code, country_name in COUNTRIES:
+        con.execute("INSERT INTO Country VALUES(?, ?)", (country_code, country_name))
         n_cou += 1
     con.commit()
    
@@ -98,6 +116,7 @@ elif sys.argv[1] == "load":
 
 elif sys.argv[1] == "load_wine":
     #Add all wines to the Wine table into database
+    #print(sys.argv[2])
     varieties = list(con.execute("SELECT VarietyId, VarietyName FROM Variety"))
     n_win = 0
     for kind in KINDS:
@@ -110,7 +129,7 @@ elif sys.argv[1] == "load_wine":
             it = map(partial(add_variety, varieties), it)
             it = map(add_kind, it)
             for row in it:
-                con.execute("INSERT INTO Wine (WineHSK, Name, Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyId) VALUES(:WineHSK, :Name, :Country, :Region, :Winery, :Rating, :NumberOfRatings, :Price, :Year, :Kind, :VarietyId)", row)
+                con.execute("INSERT INTO Wine (WineHSK, Name, CountryName, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyId) VALUES(:WineHSK, :Name, :Country, :Region, :Winery, :Rating, :NumberOfRatings, :Price, :Year, :Kind, :VarietyId)", row)
                 n_win += 1
     con.commit()
     print("Załadowano %d rekordów do tabeli Wine" % n_win, file=sys.stderr)
@@ -122,10 +141,10 @@ elif sys.argv[1] == "export_csv":
     cur = con.execute("SELECT CountryCode FROM Country")
     os.makedirs("Wines", exist_ok=True)
 
-    for countrycode in cur:
-        cur2 = con.execute("SELECT CountryCode, WineHSK, Name, Wine.Country, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyName FROM Wine LEFT JOIN Country ON Wine.Country = Country.Country LEFT JOIN Variety ON Variety.VarietyId = Wine.VarietyId WHERE CountryCode = ?", countrycode)
-        with open("Wines/%s.csv" % countrycode, newline="", mode="w") as f:
-            fieldnames = ["CountryCode", "WineHSK", "Name", "Country", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind", "VarietyName"]
+    for country_code in cur:
+        cur2 = con.execute("SELECT CountryCode, WineHSK, Name, Wine.CountryName, Region, Winery, Rating, NumberOfRatings, Price, Year, Kind, VarietyName FROM Wine LEFT JOIN Country ON Wine.CountryName = Country.CountryName LEFT JOIN Variety ON Variety.VarietyId = Wine.VarietyId WHERE CountryCode = ?", country_code)
+        with open("Wines/%s.csv" % country_code, newline="", mode="w") as f:
+            fieldnames = ["CountryCode", "WineHSK", "Name", "CountryName", "Region", "Winery", "Rating", "NumberOfRatings", "Price", "Year", "Kind", "VarietyName"]
             writer = csv.writer(f, delimiter=",")
             writer.writerow(fieldnames)
             for element in cur2:
@@ -133,7 +152,7 @@ elif sys.argv[1] == "export_csv":
     con.commit()
     print("Zapisano dane o winach do plików csv w podziale na poszczególne kraje", file=sys.stderr)
 
-    
+
 else:
     print("""
 Podałeś nieznaną operację. Możesz:
