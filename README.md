@@ -1,7 +1,7 @@
 # Tiny Transformation Wine
 
 Tiny Transformation Wine is a wine data transformation project. 
-Data was extracted from [kagle.com]  [1], transformed, stored in a SQLITE database and exported to CSV files for each country.
+Data was extracted from [kagle.com][1], transformed, stored in a SQLITE database and exported to CSV files for each country.
 
 The program is divided into several commands:
 1. create
